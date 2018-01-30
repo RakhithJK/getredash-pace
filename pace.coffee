@@ -32,6 +32,10 @@ defaultOptions =
   # means ajax navigation has occured)
   restartOnPushState: true
 
+  # Should we handle pushState / replaceState event? Function accepts previous and new URL
+  # and if it returns `false` - history event will be ignored
+  shouldHandlePushState: -> true,
+
   # Should we show the progress bar for every ajax request (not just regular or ajax-y page
   # navigation)? Set to false to disable.
   #
@@ -608,24 +612,27 @@ animation = null
 cancelAnimation = null
 Pace.running = false
 
-handlePushState = ->
-  if options.restartOnPushState
+handlePushState = (prevUrl, newUrl) ->
+  _shouldHandle = true
+  if typeof Pace.options.shouldHandlePushState == 'function'
+    _shouldHandle = Pace.options.shouldHandlePushState(prevUrl, newUrl)
+  if options.restartOnPushState && (_shouldHandle != false)
     Pace.restart()
 
 # We reset the bar whenever it looks like an ajax navigation has occured.
 if window.history.pushState?
   _pushState = window.history.pushState
   window.history.pushState = ->
-    handlePushState()
-
+    _prevUrl = window.location.href
     _pushState.apply window.history, arguments
+    handlePushState(_prevUrl, window.location.href)
 
 if window.history.replaceState?
   _replaceState = window.history.replaceState
   window.history.replaceState = ->
-    handlePushState()
-
+    _prevUrl = window.location.href
     _replaceState.apply window.history, arguments
+    handlePushState(_prevUrl, window.location.href)
 
 SOURCE_KEYS =
   ajax: AjaxMonitor
@@ -746,7 +753,7 @@ Pace.start = (_options) ->
 
 if typeof define is 'function' and define.amd
   # AMD
-  define ['pace'], -> Pace
+  define -> Pace
 else if typeof exports is 'object'
   # CommonJS
   module.exports = Pace

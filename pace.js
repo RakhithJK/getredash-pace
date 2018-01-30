@@ -14,6 +14,9 @@
     easeFactor: 1.25,
     startOnPageLoad: true,
     restartOnPushState: true,
+    shouldHandlePushState: function() {
+      return true;
+    },
     restartOnRequestAfter: 500,
     target: 'body',
     elements: {
@@ -245,7 +248,9 @@
         this.el = document.createElement('div');
         this.el.className = "pace pace-active";
         document.body.className = document.body.className.replace(/pace-done/g, '');
-        document.body.className += ' pace-running';
+        if (!/pace-running/.test(document.body.className)) {
+          document.body.className += ' pace-running';
+        }
         this.el.innerHTML = '<div class="pace-progress">\n  <div class="pace-progress-inner"></div>\n</div>\n<div class="pace-activity"></div>';
         if (targetElement.firstChild != null) {
           targetElement.insertBefore(this.el, targetElement.firstChild);
@@ -793,8 +798,13 @@
 
   Pace.running = false;
 
-  handlePushState = function() {
-    if (options.restartOnPushState) {
+  handlePushState = function(prevUrl, newUrl) {
+    var _shouldHandle;
+    _shouldHandle = true;
+    if (typeof Pace.options.shouldHandlePushState === 'function') {
+      _shouldHandle = Pace.options.shouldHandlePushState(prevUrl, newUrl);
+    }
+    if (options.restartOnPushState && (_shouldHandle !== false)) {
       return Pace.restart();
     }
   };
@@ -802,16 +812,20 @@
   if (window.history.pushState != null) {
     _pushState = window.history.pushState;
     window.history.pushState = function() {
-      handlePushState();
-      return _pushState.apply(window.history, arguments);
+      var _prevUrl;
+      _prevUrl = window.location.href;
+      _pushState.apply(window.history, arguments);
+      return handlePushState(_prevUrl, window.location.href);
     };
   }
 
   if (window.history.replaceState != null) {
     _replaceState = window.history.replaceState;
     window.history.replaceState = function() {
-      handlePushState();
-      return _replaceState.apply(window.history, arguments);
+      var _prevUrl;
+      _prevUrl = window.location.href;
+      _replaceState.apply(window.history, arguments);
+      return handlePushState(_prevUrl, window.location.href);
     };
   }
 
